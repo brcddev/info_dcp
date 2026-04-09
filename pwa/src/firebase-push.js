@@ -1,36 +1,35 @@
 import { initializeApp } from 'firebase/app';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
-// Ваш конфиг из Firebase Console
 const firebaseConfig = {
-  apiKey: "AIza...",
-  authDomain: "...",
-  projectId: "...",
-  storageBucket: "...",
-  messagingSenderId: "...",
-  appId: "..."
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
-// Регистрация сервис‑воркера (его создадим чуть позже)
 export async function registerServiceWorkerAndGetToken() {
   try {
-    // Регистрируем кастомный service worker (не тот, что генерирует vite-plugin-pwa по умолчанию)
     const registration = await navigator.serviceWorker.register('/sw.js');
     console.log('Service Worker зарегистрирован');
+console.log('VAPID key:', import.meta.env.VITE_VAPID_PUBLIC_KEY);
+console.log('Type:', typeof import.meta.env.VITE_VAPID_PUBLIC_KEY);
+console.log('Length:', import.meta.env.VITE_VAPID_PUBLIC_KEY?.length);
 
-    // Запрашиваем разрешение и получаем токен FCM
+
     const token = await getToken(messaging, {
-      vapidKey: 'ВАШ_VAPID_ПУБЛИЧНЫЙ_КЛЮЧ',
+      vapidKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
       serviceWorkerRegistration: registration,
     });
 
     if (token) {
       console.log('Токен FCM:', token);
-      // Отправляем токен на ваш шлюз (чтобы шлюз знал, кому слать уведомления)
-      await fetch('https://ваш-шлюз.com/api/register-token', {
+      await fetch(`${import.meta.env.VITE_GATEWAY_URL}/api/register-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, device: navigator.userAgent })
@@ -44,11 +43,9 @@ export async function registerServiceWorkerAndGetToken() {
   }
 }
 
-// Обработка уведомлений, когда приложение открыто
 export function onForegroundMessage() {
   onMessage(messaging, (payload) => {
     console.log('Уведомление на переднем плане:', payload);
-    // Здесь можно показать своё уведомление (например, через alert или кастомный тост)
-    alert(`${payload.notification.title}\n${payload.notification.body}`);
+    alert(`${payload.notification?.title || 'Уведомление'}\n${payload.notification?.body || ''}`);
   });
 }
