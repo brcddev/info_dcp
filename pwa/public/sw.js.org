@@ -1,0 +1,62 @@
+// public/sw.js
+// Простой Service Worker без workbox
+
+const CACHE_NAME = 'msg-dcp-v1';
+
+// Установка SW
+self.addEventListener('install', (event) => {
+  console.log('[SW] Установка');
+  event.waitUntil(self.skipWaiting());
+});
+
+// Активация SW
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Активация');
+  event.waitUntil(self.clients.claim());
+});
+
+// Кэширование статических файлов
+self.addEventListener('fetch', (event) => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+  );
+});
+
+// ОБРАБОТКА PUSH-УВЕДОМЛЕНИЙ — ЭТО ГЛАВНОЕ!
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push получено');
+  
+  let title = 'ESP32';
+  let body = 'Новое сообщение';
+  let icon = '/icons/pwa-192x192.png';
+  
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      console.log('[SW] Данные:', data);
+      title = data.title || data.notification?.title || title;
+      body = data.body || data.notification?.body || body;
+      icon = data.icon || data.notification?.icon || icon;
+    } catch (e) {
+      body = event.data.text();
+    }
+  }
+  
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: body,
+      icon: icon,
+      badge: icon,
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+      data: { url: '/' }
+    })
+  );
+});
+
+// Клик по уведомлению
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow('/'));
+});

@@ -58,7 +58,12 @@ export default defineConfig({
 
       },
       injectRegister: false,      // отключаем автоматическую регистрацию
-      workbox: { skipWaiting: true, clientsClaim: true }
+      registerType: 'autoUpdate',
+      workbox: { 
+        swDest: 'sw.js',
+        importScripts: [],
+        navigateFallback: null
+      }
     })
   ]
 });
