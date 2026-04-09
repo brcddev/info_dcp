@@ -13,36 +13,48 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const messaging = getMessaging(app);
 
+// Только ОДНА функция
 export async function registerServiceWorkerAndGetToken() {
   try {
+    console.log('1. Регистрируем Service Worker...');
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker зарегистрирован');
-console.log('VAPID key:', import.meta.env.VITE_VAPID_PUBLIC_KEY);
-console.log('Type:', typeof import.meta.env.VITE_VAPID_PUBLIC_KEY);
-console.log('Length:', import.meta.env.VITE_VAPID_PUBLIC_KEY?.length);
+    console.log('2. Service Worker зарегистрирован');
 
-
+    console.log('3. Запрашиваем токен FCM...');
     const token = await getToken(messaging, {
       vapidKey: import.meta.env.VITE_VAPID_PUBLIC_KEY,
       serviceWorkerRegistration: registration,
     });
 
     if (token) {
-      console.log('Токен FCM:', token);
-      await fetch(`${import.meta.env.VITE_GATEWAY_URL}/api/register-token`, {
+      console.log('4. Токен получен:', token);
+      
+      console.log('5. Отправляем токен на шлюз...');
+      const response = await fetch(`${import.meta.env.VITE_GATEWAY_URL}/api/register-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, device: navigator.userAgent })
       });
+      
+      if (response.ok) {
+        console.log('6. Токен успешно отправлен!');
+        alert('✅ Токен зарегистрирован!');
+      } else {
+        console.error('7. Ошибка отправки:', response.status);
+        alert('❌ Ошибка отправки токена');
+      }
       return token;
     } else {
-      console.error('Не удалось получить токен');
+      console.error('Токен не получен');
+      alert('❌ Не удалось получить токен FCM');
     }
   } catch (err) {
-    console.error('Ошибка регистрации push:', err);
+    console.error('Ошибка:', err);
+    alert(`Ошибка: ${err.message}`);
   }
 }
 
+// Только ОДНА функция для foreground сообщений
 export function onForegroundMessage() {
   onMessage(messaging, (payload) => {
     console.log('Уведомление на переднем плане:', payload);

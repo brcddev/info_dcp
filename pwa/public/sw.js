@@ -1,6 +1,9 @@
 // public/sw.js
 self.addEventListener('push', (event) => {
   const data = event.data.json();
+    console.log('[SW] Push событие получено!');
+    console.log('[SW] Данные:', event.data?.json());
+
   const options = {
     body: data.notification?.body || 'Сообщение от ESP',
     icon: '/pwa-192x192.png',
@@ -20,4 +23,12 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.openWindow(event.notification.data.url)
   );
+});
+
+self.addEventListener('message', (event) => {
+    // Если приложение просит пропустить ожидание и активироваться
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        console.log('[SW] Получена команда SKIP_WAITING. Активируюсь.');
+        self.skipWaiting();
+    }
 });

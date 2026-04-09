@@ -6,11 +6,56 @@ export default defineConfig({
   plugins: [
     preact(),
     VitePWA({
+
+
       manifest: {
-        name: 'info_dcp',
-        short_name: 'infoDCP',
-        theme_color: '#ffffff',
-        icons: [/* ... */]
+        name: "Message DCP",
+        short_name: "msgDCP",
+        description: "Уведомления от ESP32",
+        theme_color: "#ffffff",
+        background_color: "#ffffff",
+        display: "standalone",
+        start_url: "/",
+        icons: [
+          {
+            src: "/icons/pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/icons/pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any"
+          },
+          {
+            src: "/icons/pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable"   // для Android
+          }
+        ],
+        // Добавляем скриншоты (обязательно!)
+        screenshots: [
+          {
+            src: "/screenshots/wide.png",
+            sizes: "1280x720",
+            type: "image/png",
+            form_factor: "wide",
+            label: "Главный экран"
+          },
+          {
+            src: "/screenshots/mobile.png",
+            sizes: "720x1280",
+            type: "image/png",
+            label: "Мобильный вид"
+          }
+        ]
+
+
+
+
       },
       injectRegister: false,      // отключаем автоматическую регистрацию
       workbox: { skipWaiting: true, clientsClaim: true }
