@@ -53,15 +53,19 @@ app.post('/api/send', async (req, res) => {
     return res.status(429).json({ error: 'Too many requests' });
   }
   
-  const { title, body, data, sensor } = req.body;
-  
+  const { title, body, data, channel, sensor } = req.body;
+
   if (fcmTokens.length === 0) {
     return res.json({ success: false, error: 'No registered tokens' });
   }
   
+  const fcmData = { ...data };
+  if (channel) fcmData.channel = channel;
+  if (sensor) fcmData.sensor = JSON.stringify(sensor);
+  
   const message = {
     notification: { title: title || 'ESP Alert', body: body || '' },
-    data: { ...data, sensor: JSON.stringify(sensor || {}) },
+    data: fcmData,
     tokens: fcmTokens
   };
   

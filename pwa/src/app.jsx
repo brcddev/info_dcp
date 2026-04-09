@@ -1,69 +1,9 @@
 // src/app.jsx
 import { useEffect, useState } from 'preact/hooks';
 import { Settings } from './components/Settings';
+import { Charts } from './components/Charts';
+import { History } from './components/History';
 import './app.css';
-
-// Компонент истории (отдельно для critical и sensors)
-const History = ({ criticalMessages, sensorMessages, onClearCritical, onClearSensors }) => (
-  <div>
-    <div class="card">
-      <h3>🚨 Критические сообщения</h3>
-      <button onClick={onClearCritical} class="btn-small">Очистить</button>
-      <div class="history-list">
-        {criticalMessages.length === 0 ? (
-          <p class="empty">Нет критических сообщений</p>
-        ) : (
-          criticalMessages.slice().reverse().map((msg, idx) => (
-            <div key={idx} class={`history-item ${msg.type}`}>
-              <div class="history-title">{msg.title}</div>
-              <div class="history-body">{msg.body}</div>
-              <div class="history-time">{new Date(msg.time).toLocaleString()}</div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-    
-    <div class="card">
-      <h3>📊 Данные датчиков</h3>
-      <button onClick={onClearSensors} class="btn-small">Очистить</button>
-      <div class="history-list">
-        {sensorMessages.length === 0 ? (
-          <p class="empty">Нет данных датчиков</p>
-        ) : (
-          sensorMessages.slice().reverse().map((msg, idx) => (
-            <div key={idx} class="history-item info">
-              <div class="history-title">{msg.title}</div>
-              <div class="history-body">{msg.body}</div>
-              <div class="history-time">{new Date(msg.time).toLocaleString()}</div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  </div>
-);
-
-// Компонент графиков датчиков
-const Charts = ({ sensorData }) => (
-  <div class="card">
-    <h3>📊 Графики датчиков</h3>
-    <div class="sensor-list">
-      {sensorData.length === 0 ? (
-        <p class="empty">Нет данных датчиков</p>
-      ) : (
-        sensorData.slice(-20).map((data, idx) => (
-          <div key={idx} class="sensor-item">
-            <span class="sensor-name">{data.name}</span>
-            <span class="sensor-value">{data.value} {data.unit}</span>
-            <div class="sensor-bar" style={{ width: `${Math.min(100, data.value / 10)}%` }}></div>
-            <div class="sensor-time">{new Date(data.time).toLocaleTimeString()}</div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-);
 
 export function App() {
   const [activeTab, setActiveTab] = useState('history');
@@ -76,21 +16,22 @@ export function App() {
     maxHistory: 100
   });
   const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [tokenStatus, setTokenStatus] = useState('');
 
-  // Загрузка сохранённых данных
+  // ==================== ЗАГРУЗКА СОХРАНЁННЫХ ДАННЫХ ====================
   useEffect(() => {
     const savedCritical = localStorage.getItem('esp32_critical_messages');
     const savedSensors = localStorage.getItem('esp32_sensor_messages');
     const savedSensorData = localStorage.getItem('esp32_sensor_data');
     const savedSettings = localStorage.getItem('esp32_settings');
-    
+
     if (savedCritical) setCriticalMessages(JSON.parse(savedCritical));
     if (savedSensors) setSensorMessages(JSON.parse(savedSensors));
     if (savedSensorData) setSensorData(JSON.parse(savedSensorData));
     if (savedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
   }, []);
 
-  // Сохранение данных
+  // ==================== СОХРАНЕНИЕ ДАННЫХ ====================
   useEffect(() => {
     localStorage.setItem('esp32_critical_messages', JSON.stringify(criticalMessages.slice(-settings.maxHistory)));
     localStorage.setItem('esp32_sensor_messages', JSON.stringify(sensorMessages.slice(-settings.maxHistory)));
@@ -98,17 +39,17 @@ export function App() {
     localStorage.setItem('esp32_settings', JSON.stringify(settings));
   }, [criticalMessages, sensorMessages, sensorData, settings]);
 
-  // Обновление настроек
+  // ==================== ОБНОВЛЕНИЕ НАСТРОЕК ====================
   const updateSetting = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
   };
 
-  // Очистка истории
+  // ==================== ОЧИСТКА ИСТОРИИ ====================
   const clearCriticalHistory = () => {
     setCriticalMessages([]);
     localStorage.removeItem('esp32_critical_messages');
   };
-  
+
   const clearSensorsHistory = () => {
     setSensorMessages([]);
     localStorage.removeItem('esp32_sensor_messages');
@@ -116,7 +57,7 @@ export function App() {
     localStorage.removeItem('esp32_sensor_data');
   };
 
-  // Тестовые уведомления
+  // ==================== ТЕСТОВЫЕ УВЕДОМЛЕНИЯ (локальные) ====================
   const testCritical = () => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then(reg => {
@@ -127,12 +68,35 @@ export function App() {
       });
     }
   };
-  
+
   const testSensor = () => {
-    // Отправляем данные датчика через fetch
+    // Локальная имитация данных датчика (без отправки на сервер)
+    const mockSensorData = {
+      title: 'Датчик температуры',
+      body: '22.5°C',
+      channel: 'sensors',
+      sensor: { name: 'DHT22', value: 22.5, unit: '°C' }
+    };
+    window.dispatchEvent(new MessageEvent('message', {
+      data: {
+        type: 'ESP32_MESSAGE',
+        title: mockSensorData.title,
+        body: mockSensorData.body,
+        channel: mockSensorData.channel,
+        sensor: mockSensorData.sensor,
+        timestamp: Date.now()
+      }
+    }));
+  };
+
+  // (Опционально) Реальная отправка на сервер – можно добавить отдельную кнопку
+  const testSensorReal = () => {
     fetch('/api/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': import.meta.env.VITE_API_KEY
+      },
       body: JSON.stringify({
         title: 'Датчик температуры',
         body: '22.5°C',
@@ -142,7 +106,7 @@ export function App() {
     });
   };
 
-  // Установка PWA
+  // ==================== УСТАНОВКА PWA ====================
   const installPWA = () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -150,44 +114,118 @@ export function App() {
     }
   };
 
-  // Обработка сообщений от Service Worker
+  // ==================== РЕГИСТРАЦИЯ ТОКЕНА ====================
+  const registerToken = async () => {
+    setTokenStatus('Регистрация...');
+    try {
+      if (!('serviceWorker' in navigator)) {
+        setTokenStatus('❌ Service Worker не поддерживается');
+        return;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      console.log('SW готов:', registration);
+
+      const { registerServiceWorkerAndGetToken } = await import('./firebase-push.js');
+      const token = await registerServiceWorkerAndGetToken();
+
+      if (token) {
+        setTokenStatus('✅ Токен зарегистрирован!');
+        const response = await fetch('/api/register-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token })
+        });
+        if (response.ok) {
+          setTokenStatus('✅ Токен отправлен на сервер!');
+        }
+      } else {
+        setTokenStatus('❌ Не удалось получить токен');
+      }
+    } catch (error) {
+      console.error(error);
+      setTokenStatus(`❌ Ошибка: ${error.message}`);
+    }
+    setTimeout(() => setTokenStatus(''), 5000);
+  };
+
+  // ==================== АВТОМАТИЧЕСКАЯ РЕГИСТРАЦИЯ ТОКЕНА ====================
+  useEffect(() => {
+    // Регистрируем Service Worker и запрашиваем разрешение
+    const init = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          console.log('Service Worker зарегистрирован:', registration);
+        } catch (error) {
+          console.error('Ошибка регистрации SW:', error);
+        }
+      }
+      if (Notification.permission === 'default') {
+        const permission = await Notification.requestPermission();
+        console.log('Разрешение на уведомления:', permission);
+      }
+    };
+    init();
+  }, []);
+
+  // Автоматическая регистрация токена при старте (если уведомления разрешены)
+  useEffect(() => {
+    if (Notification.permission === 'granted') {
+      registerToken();
+    }
+  }, []); // пустой массив – один раз при монтировании
+
+  // Перерегистрация токена при фокусе окна (на случай, если токен изменился)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (Notification.permission === 'granted') {
+        registerToken();
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  // ==================== ОБРАБОТЧИК СООБЩЕНИЙ ОТ SERVICE WORKER ====================
   useEffect(() => {
     const handleMessage = (event) => {
       console.log('Получено сообщение от SW:', event.data);
-      
+
       if (event.data && event.data.type === 'ESP32_MESSAGE') {
-        const { title, body, channel, sensor } = event.data;
-        
-        // Фильтрация (только для critical)
-        if (settings.filterAlerts && channel !== 'critical') {
-          return;
+        let { title, body, channel, sensor } = event.data;
+
+        // Коррекция: если есть sensor, но channel не sensors
+        if (sensor && channel !== 'sensors') {
+          console.log('Корректируем канал: было', channel, 'стало sensors');
+          channel = 'sensors';
         }
-        
+
+        console.log('Итоговый channel:', channel);
+
+        if (settings.filterAlerts && channel !== 'critical') return;
+
         const newMessage = {
-          title,
-          body,
+          title, body,
           time: Date.now(),
           type: channel === 'critical' ? (title.includes('⚠️') ? 'warning' : 'alert') : 'info'
         };
-        
+
         if (channel === 'critical') {
           setCriticalMessages(prev => [newMessage, ...prev].slice(0, settings.maxHistory));
         } else if (channel === 'sensors') {
           setSensorMessages(prev => [newMessage, ...prev].slice(0, settings.maxHistory));
-          
-          // Если есть данные датчика
           if (sensor) {
             setSensorData(prev => [...prev, { ...sensor, time: Date.now() }].slice(-200));
           }
         }
       }
     };
-    
+
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleMessage);
-      window.addEventListener('message', handleMessage);
     }
-    
+    window.addEventListener('message', handleMessage);
+
     return () => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleMessage);
@@ -196,7 +234,7 @@ export function App() {
     };
   }, [settings.filterAlerts, settings.maxHistory]);
 
-  // Обработка beforeinstallprompt
+  // ==================== BEFOREINSTALLPROMPT (УСТАНОВКА PWA) ====================
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
@@ -206,62 +244,7 @@ export function App() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  // Регистрация Service Worker
-  useEffect(() => {
-    const initServiceWorker = async () => {
-      if ('serviceWorker' in navigator) {
-        try {
-          const registration = await navigator.serviceWorker.register('/sw.js');
-          console.log('Service Worker зарегистрирован:', registration);
-          
-          if (Notification.permission === 'default') {
-            const permission = await Notification.requestPermission();
-            console.log('Разрешение на уведомления:', permission);
-          }
-        } catch (error) {
-          console.error('Ошибка регистрации SW:', error);
-        }
-      }
-    };
-    
-    initServiceWorker();
-  }, []);
-
-const [tokenStatus, setTokenStatus] = useState('');
-
-const registerToken = async () => {
-  setTokenStatus('Регистрация...');
-  try {
-    if (!('serviceWorker' in navigator)) {
-      setTokenStatus('❌ Service Worker не поддерживается');
-      return;
-    }
-    const registration = await navigator.serviceWorker.ready;
-    console.log('SW готов:', registration);
-    
-    const { registerServiceWorkerAndGetToken } = await import('./firebase-push.js');
-    const token = await registerServiceWorkerAndGetToken();
-    
-    if (token) {
-      setTokenStatus('✅ Токен зарегистрирован!');
-      const response = await fetch('/api/register-token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token })
-      });
-      if (response.ok) {
-        setTokenStatus('✅ Токен отправлен на сервер!');
-      }
-    } else {
-      setTokenStatus('❌ Не удалось получить токен');
-    }
-  } catch (error) {
-    console.error(error);
-    setTokenStatus(`❌ Ошибка: ${error.message}`);
-  }
-  setTimeout(() => setTokenStatus(''), 5000);
-};
-
+  // ==================== RENDER ====================
   return (
     <div class="app">
       <header>
@@ -288,7 +271,7 @@ const registerToken = async () => {
 
       <div class="content">
         {activeTab === 'history' && (
-          <History 
+          <History
             criticalMessages={criticalMessages}
             sensorMessages={sensorMessages}
             onClearCritical={clearCriticalHistory}
@@ -299,15 +282,15 @@ const registerToken = async () => {
           <Charts sensorData={sensorData} />
         )}
         {activeTab === 'settings' && (
-        <Settings 
-          settings={settings} 
-          onUpdate={updateSetting} 
-          onTestCritical={testCritical}
-          onTestSensor={testSensor}
-          onRegisterToken={registerToken}
-          tokenStatus={tokenStatus}
-        />
-      )}
+          <Settings
+            settings={settings}
+            onUpdate={updateSetting}
+            onTestCritical={testCritical}
+            onTestSensor={testSensor}
+            onRegisterToken={registerToken}
+            tokenStatus={tokenStatus}
+          />
+        )}
       </div>
 
       <footer>

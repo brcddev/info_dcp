@@ -13,54 +13,53 @@ self.addEventListener('activate', (event) => {
 
 // Обработка push-уведомлений
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push получено');
-  
-  let title = 'ESP32';
-  let body = 'Новое сообщение';
-  let icon = '/icons/pwa-192x192.png';
-  let channel = 'critical'; // critical или sensors
-  let sensor = null;
-  
+  let data = {};
   if (event.data) {
     try {
-      const data = event.data.json();
+      data = event.data.json();
       console.log('[SW] Данные:', data);
-      title = data.title || data.notification?.title || title;
-      body = data.body || data.notification?.body || body;
-      icon = data.icon || data.notification?.icon || icon;
-      channel = data.channel || data.notification?.channel || 'critical';
-      sensor = data.sensor || null;
-    } catch (e) {
-      body = event.data.text();
+    } catch(e) {
+      console.error('[SW] Ошибка парсинга:', e);
     }
   }
+
+  // Извлекаем заголовок и тело
+  let title = data.notification?.title || data.title || 'ESP32';
+  let body = data.notification?.body || data.body || '';
+  let icon = data.icon || data.notification?.icon || '/icons/pwa-192x192.png';
   
-  // Отправляем сообщение всем открытым клиентам
+  // 🔑 Ключевое: извлекаем channel (может быть в корне или в data)
+  let channel = data.channel || data.data?.channel || 'critical';
+  
+  // Извлекаем sensor (может быть объектом или строкой JSON)
+  let sensor = data.sensor || data.data?.sensor || null;
+  if (typeof sensor === 'string') {
+    try {
+      sensor = JSON.parse(sensor);
+    } catch(e) {}
+  }
+
+  console.log('[SW] Канал:', channel, 'Сенсор:', sensor);
+
+  // Отправляем сообщение клиентам
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clients => {
-        const message = { 
-          type: 'ESP32_MESSAGE', 
-          title, 
-          body, 
-          channel,
-          sensor, 
-          timestamp: Date.now() 
+        const message = {
+          type: 'ESP32_MESSAGE',
+          title, body, channel, sensor,
+          timestamp: Date.now()
         };
         clients.forEach(client => client.postMessage(message));
       })
   );
-  
-  // Показываем уведомление ТОЛЬКО для critical канала
+
+  // Показываем уведомление только для critical
   if (channel === 'critical') {
     event.waitUntil(
       self.registration.showNotification(title, {
-        body: body,
-        icon: icon,
-        badge: icon,
-        vibrate: [200, 100, 200],
-        requireInteraction: true,
-        data: { url: '/', title, body, channel }
+        body, icon, badge: '/icons/pwa-192x192.png',
+        vibrate: [200, 100, 200], requireInteraction: true
       })
     );
   }

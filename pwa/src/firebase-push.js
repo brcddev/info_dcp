@@ -38,7 +38,7 @@ export async function registerServiceWorkerAndGetToken() {
       
       if (response.ok) {
         console.log('6. Токен успешно отправлен!');
-        alert('✅ Токен зарегистрирован!');
+        //alert('✅ Токен зарегистрирован!');
       } else {
         console.error('7. Ошибка отправки:', response.status);
         alert('❌ Ошибка отправки токена');
