@@ -1,6 +1,6 @@
 // websocket.js
 const WebSocket = require('ws');
-const { saveEspData, getEspData, getEspHistory, getEspList } = require('./esp-storage');
+const { saveEspData, getEspData, getEspHistory, getEspList, registerEsp } = require('./esp-storage');
 const { sendFCMNotification } = require('./fcm');
 
 const wsClients = new Map(); // clientId -> { ws, type, espId, lastSeen }
@@ -55,6 +55,8 @@ function initWebSocketServer(server, path) {
         if (message.type === 'esp_auth') {
           client.type = 'esp';
           client.espId = message.espId || `esp_${clientId}`;
+          // Регистрируем ESP в хранилище (сразу добавляем в список)
+          registerEsp(client.espId);
           
           console.log(`✅ ESP аутентифицирован: ${client.espId} (client #${clientId})`);
           

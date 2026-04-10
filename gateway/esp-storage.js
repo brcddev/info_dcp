@@ -133,11 +133,20 @@ function getAllEspIds() {
 function getEspList() {
   return getAllEspIds().map(id => ({
     id,
-    lastData: getEspData(id),
+    lastData: getEspData(id), // может быть null
     historyCount: (espHistory.get(id) || []).length
   }));
 }
-
+function registerEsp(espId) {
+  if (!espData.has(espId)) {
+    espData.set(espId, null); // пока нет данных, но ESP известен
+    espHistory.set(espId, []);
+    updateIndex(espId);
+    console.log(`🆕 ESP зарегистрирован: ${espId}`);
+    return true;
+  }
+  return false;
+}
 // Экспорт истории в CSV (для аналитики)
 function exportHistoryToCSV(espId) {
   const history = getEspHistory(espId);
@@ -182,5 +191,6 @@ module.exports = {
   getEspHistory,
   getAllEspIds,
   getEspList,
-  exportHistoryToCSV
+  exportHistoryToCSV,
+  registerEsp
 };
