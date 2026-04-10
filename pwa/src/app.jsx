@@ -3,6 +3,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { Settings } from './components/Settings';
 import { Charts } from './components/Charts';
 import { History } from './components/History';
+import { connectWebSocket } from './websocket';
 import './app.css';
 
 export function App() {
@@ -30,7 +31,9 @@ export function App() {
     if (savedSensorData) setSensorData(JSON.parse(savedSensorData));
     if (savedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
   }, []);
-
+useEffect(() => {
+  connectWebSocket();
+}, []);
   // ==================== СОХРАНЕНИЕ ДАННЫХ ====================
   useEffect(() => {
     localStorage.setItem('esp32_critical_messages', JSON.stringify(criticalMessages.slice(-settings.maxHistory)));
