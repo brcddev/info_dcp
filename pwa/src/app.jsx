@@ -214,8 +214,15 @@ export function App() {
           setCriticalMessages(prev => [newMessage, ...prev].slice(0, settings.maxHistory));
         } else if (channel === 'sensors') {
           setSensorMessages(prev => [newMessage, ...prev].slice(0, settings.maxHistory));
+          
           if (sensor) {
-            setSensorData(prev => [...prev, { ...sensor, time: Date.now() }].slice(-200));
+            // sensor уже объект с полями name, value, unit
+            setSensorData(prev => [...prev, { 
+              name: sensor.name || title,
+              value: typeof sensor.value === 'number' ? sensor.value : parseFloat(sensor.value),
+              unit: sensor.unit || '',
+              time: Date.now() 
+            }].slice(-200));
           }
         }
       }

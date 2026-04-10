@@ -10,8 +10,7 @@ self.addEventListener('activate', (event) => {
   console.log('[SW] Активация');
   event.waitUntil(self.clients.claim());
 });
-
-// Обработка push-уведомлений
+////////////////////////////////////////////
 self.addEventListener('push', (event) => {
   let data = {};
   if (event.data) {
@@ -23,16 +22,12 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Извлекаем заголовок и тело
+  // Извлекаем данные (поддерживаем оба формата)
   let title = data.notification?.title || data.title || 'ESP32';
   let body = data.notification?.body || data.body || '';
-  let icon = data.icon || data.notification?.icon || '/icons/pwa-192x192.png';
+  let channel = data.data?.channel || data.channel || 'critical';
+  let sensor = data.data?.sensor || data.sensor || null;
   
-  // 🔑 Ключевое: извлекаем channel (может быть в корне или в data)
-  let channel = data.channel || data.data?.channel || 'critical';
-  
-  // Извлекаем sensor (может быть объектом или строкой JSON)
-  let sensor = data.sensor || data.data?.sensor || null;
   if (typeof sensor === 'string') {
     try {
       sensor = JSON.parse(sensor);
@@ -41,15 +36,19 @@ self.addEventListener('push', (event) => {
 
   console.log('[SW] Канал:', channel, 'Сенсор:', sensor);
 
-  // Отправляем сообщение клиентам
+  // Отправляем ВСЕМ клиентам
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true })
       .then(clients => {
         const message = {
           type: 'ESP32_MESSAGE',
-          title, body, channel, sensor,
+          title: title,
+          body: body,
+          channel: channel,
+          sensor: sensor,
           timestamp: Date.now()
         };
+        console.log('[SW] Отправка клиентам:', message);
         clients.forEach(client => client.postMessage(message));
       })
   );
@@ -58,12 +57,13 @@ self.addEventListener('push', (event) => {
   if (channel === 'critical') {
     event.waitUntil(
       self.registration.showNotification(title, {
-        body, icon, badge: '/icons/pwa-192x192.png',
-        vibrate: [200, 100, 200], requireInteraction: true
+        body: body,
+        icon: '/icons/pwa-192x192.png'
       })
     );
   }
 });
+////////////////////////////////////////////
 
 // Клик по уведомлению
 self.addEventListener('notificationclick', (event) => {

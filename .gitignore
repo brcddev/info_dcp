@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 
+*.org
 .env
 serviceAccountKey.json
 # Editor directories and files

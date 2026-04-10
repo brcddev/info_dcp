@@ -12,8 +12,7 @@ app.use(express.json());
 
 let fcmTokens = [];
 
-// Секретный ключ для ESP32 (добавьте в .env)
-const ESP_SECRET = process.env.ESP_SECRET || 'your_secret_key_here';
+const ESP_SECRET = process.env.ESP_SECRET || 'your_super_secret_key_123';
 
 // Ограничитель количества уведомлений (не более 10 в минуту)
 const rateLimit = new Map();
@@ -28,7 +27,7 @@ function checkRateLimit(token) {
   return true;
 }
 
-// Регистрация токена (без изменений)
+// Регистрация токена
 app.post('/api/register-token', (req, res) => {
   const { token } = req.body;
   if (token && !fcmTokens.includes(token)) {
@@ -38,9 +37,9 @@ app.post('/api/register-token', (req, res) => {
   res.json({ success: true });
 });
 
-// Отправка уведомлений с проверкой авторизации
+// Отправка уведомлений
 app.post('/api/send', async (req, res) => {
-  // Проверка секретного ключа
+  // Проверка API ключа
   const apiKey = req.headers['x-api-key'];
   if (apiKey !== ESP_SECRET) {
     console.log(`❌ Неавторизованный запрос от ${req.ip}`);
@@ -53,21 +52,33 @@ app.post('/api/send', async (req, res) => {
     return res.status(429).json({ error: 'Too many requests' });
   }
   
-  const { title, body, data, channel, sensor } = req.body;
-
+  const { title, body, channel, sensor } = req.body;
+  
   if (fcmTokens.length === 0) {
     return res.json({ success: false, error: 'No registered tokens' });
   }
   
-  const fcmData = { ...data };
-  if (channel) fcmData.channel = channel;
-  if (sensor) fcmData.sensor = JSON.stringify(sensor);
+  // Формируем данные для FCM
+  const fcmData = {
+    channel: channel || 'critical'
+  };
+  
+  // Если есть данные сенсора — добавляем их (как строку JSON)
+  if (sensor && (channel === 'sensors' || sensor.value !== undefined)) {
+    fcmData.sensor = JSON.stringify(sensor);
+  }
   
   const message = {
-    notification: { title: title || 'ESP Alert', body: body || '' },
+    notification: { 
+      title: title || (channel === 'sensors' ? '📊 Данные датчика' : 'ESP Alert'), 
+      body: body || ''
+    },
     data: fcmData,
     tokens: fcmTokens
   };
+  
+  console.log(`📤 Отправка: channel=${channel}, title=${title}`);
+  if (sensor) console.log(`📊 Сенсор: ${sensor.name}=${sensor.value}${sensor.unit}`);
   
   const response = await admin.messaging().sendEachForMulticast(message);
   
@@ -84,11 +95,10 @@ app.post('/api/send', async (req, res) => {
     console.log(`🗑️ Удалено ${invalidTokens.length} невалидных токенов`);
   }
   
-  console.log(`📤 Отправлено уведомление: ${title} -> ${body}`);
   res.json({ success: true, results: response.responses });
 });
 
-// Получение статистики (защищено)
+// Получение статистики (опционально)
 app.get('/api/stats', (req, res) => {
   const apiKey = req.headers['x-api-key'];
   if (apiKey !== ESP_SECRET) {

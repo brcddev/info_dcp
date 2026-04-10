@@ -29,7 +29,14 @@ export const Settings = ({ settings, onUpdate, onTestCritical, onTestSensor, onR
       <button onClick={onRegisterToken} class="btn-register">
         📱 Зарегистрировать токен
       </button>
-      {tokenStatus && <span class="token-status">{tokenStatus}</span>}
+      {tokenStatus && (
+        <span class={`token-status ${
+          tokenStatus.includes('✅') ? 'success' : 
+          tokenStatus.includes('❌') ? 'error' : 'info'
+        }`}>
+          {tokenStatus}
+        </span>
+      )}
     </div>
   </div>
 );
