@@ -1,7 +1,7 @@
 // api.js
 const express = require('express');
-const { registerToken } = require('./fcm');
-const { getEspData, getEspHistory, getEspList } = require('./esp-storage');
+const { registerToken, sendFCMNotification } = require('./fcm');
+const { getEspData, getEspHistory, getEspList, saveEspData } = require('./esp-storage');
 const config = require('./config');
 
 const router = express.Router();
@@ -11,6 +11,45 @@ router.post('/api/register-token', (req, res) => {
   const { token } = req.body;
   registerToken(token);
   res.json({ success: true });
+});
+
+// Отправка уведомления (push + сохранение данных, если это ESP)
+router.post('/api/send', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== config.ESP_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { title, body, channel, sensor, espId } = req.body;
+
+  // Если передан espId, считаем это данными от ESP (сохраняем в историю)
+  if (espId && (sensor || title)) {
+    const espData = {
+      tTank: sensor?.value || 0,
+      tTop: sensor?.value || 0,
+      heap: 0,
+      rssi: 0,
+      alarm: channel === 'critical' ? 1 : 0,
+      ...(sensor && { [sensor.name]: sensor.value })
+    };
+    saveEspData(espId, espData);
+  }
+
+  // Отправляем FCM уведомление, если есть токены
+  const fcmResult = await sendFCMNotification(title, body, channel, espId, sensor);
+  res.json({ success: true, results: fcmResult?.responses });
+});
+
+// Приём данных от ESP через REST (альтернатива WebSocket)
+router.post('/api/esp/data', async (req, res) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== config.ESP_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const espId = req.headers['x-esp-id'] || req.body.espId || 'unknown';
+  const data = req.body;
+  saveEspData(espId, data);
+  res.json({ success: true, espId });
 });
 
 // Получить список ESP
@@ -43,43 +82,6 @@ router.get('/api/esp/stats', (req, res) => {
       heap: esp.lastData?.heap
     };
   }
-  res.json(stats);
-});
-
-// api.js - добавить новый endpoint
-const { exportHistoryToCSV } = require('./esp-storage');
-
-// Экспорт истории в CSV
-router.get('/api/esp/:espId/export', (req, res) => {
-  const csvPath = exportHistoryToCSV(req.params.espId);
-  if (csvPath) {
-    res.download(csvPath);
-  } else {
-    res.status(404).json({ error: 'No data for this ESP' });
-  }
-});
-
-// Получить статистику по истории
-router.get('/api/esp/:espId/stats', (req, res) => {
-  const history = getEspHistory(req.params.espId);
-  if (history.length === 0) {
-    return res.json({ error: 'No data' });
-  }
-  
-  const temps = history.map(r => r.tTank).filter(v => v > -100);
-  const stats = {
-    count: history.length,
-    tTank: {
-      min: Math.min(...temps),
-      max: Math.max(...temps),
-      avg: temps.reduce((a,b) => a + b, 0) / temps.length,
-      last: temps[temps.length - 1]
-    },
-    period: {
-      from: new Date(history[0].timestamp).toISOString(),
-      to: new Date(history[history.length - 1].timestamp).toISOString()
-    }
-  };
   res.json(stats);
 });
 
