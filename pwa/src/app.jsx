@@ -1,13 +1,17 @@
 // src/app.jsx
 import { useEffect, useState } from 'preact/hooks';
-import { Settings } from './components/Settings';
+import { ESPSelector } from './components/ESPSelector';
+import { connectWebSocket, onMessage } from './websocket';
 import { Charts } from './components/Charts';
 import { History } from './components/History';
-import { connectWebSocket } from './websocket';
+import { Settings } from './components/Settings.jsx'
 import './app.css';
 
 export function App() {
   const [activeTab, setActiveTab] = useState('history');
+  const [selectedEsp, setSelectedEsp] = useState(null);
+  const [espLastData, setEspLastData] = useState(null);
+  const [espHistory, setEspHistory] = useState([]);
   const [criticalMessages, setCriticalMessages] = useState([]);
   const [sensorMessages, setSensorMessages] = useState([]);
   const [sensorData, setSensorData] = useState([]);
@@ -19,21 +23,125 @@ export function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [tokenStatus, setTokenStatus] = useState('');
 
-  // ==================== ЗАГРУЗКА СОХРАНЁННЫХ ДАННЫХ ====================
+  // Подключение WebSocket
   useEffect(() => {
-    const savedCritical = localStorage.getItem('esp32_critical_messages');
-    const savedSensors = localStorage.getItem('esp32_sensor_messages');
-    const savedSensorData = localStorage.getItem('esp32_sensor_data');
-    const savedSettings = localStorage.getItem('esp32_settings');
+    connectWebSocket();
+    
+// Внутри useEffect с onMessage
+onMessage((data) => {
+  console.log('WS message:', data.type, data);
 
-    if (savedCritical) setCriticalMessages(JSON.parse(savedCritical));
-    if (savedSensors) setSensorMessages(JSON.parse(savedSensors));
-    if (savedSensorData) setSensorData(JSON.parse(savedSensorData));
-    if (savedSettings) setSettings(prev => ({ ...prev, ...JSON.parse(savedSettings) }));
-  }, []);
-useEffect(() => {
-  connectWebSocket();
-}, []);
+  if (data.type === 'esp_data_response' && data.espId === selectedEsp) {
+    setEspLastData(data.data);
+  }
+  
+if (data.type === 'esp_history' && data.espId === selectedEsp) {
+  const history = data.history || [];
+  setEspHistory(history);
+  
+  // Все точки для графиков
+  const allPoints = [];
+  history.forEach(record => {
+    const ts = record.timestamp;
+    if (record.tTank !== undefined) allPoints.push({ name: 'Температура бака', value: record.tTank, unit: '°C', time: ts });
+    if (record.tTop !== undefined) allPoints.push({ name: 'Температура верха', value: record.tTop, unit: '°C', time: ts });
+    if (record.Pressure !== undefined && record.Pressure !== 0) allPoints.push({ name: 'Давление', value: record.Pressure, unit: 'гПа', time: ts });
+    if (record.heap !== undefined) allPoints.push({ name: 'Heap (память)', value: record.heap, unit: 'байт', time: ts });
+    if (record.rssi !== undefined) allPoints.push({ name: 'RSSI', value: record.rssi, unit: 'dBm', time: ts });
+    if (record.W?.PWMDuty !== undefined) allPoints.push({ name: 'Мощность нагревателя', value: record.W.PWMDuty, unit: '%', time: ts });
+  });
+  setSensorData(allPoints.slice(-200));
+  
+  // Только alarm для ленты датчиков
+const alarmHistory = history.filter(r => r.alarm === 1).map(record => ({
+  title: `🚨 ALARM на ${selectedEsp}`,
+  body: `tTank=${record.tTank}°C, tTop=${record.tTop}°C, давление=${record.Pressure} гПа`,
+  time: record.timestamp,
+  type: 'alert'
+}));
+  setSensorMessages(alarmHistory.slice(-settings.maxHistory));
+}
+  
+  if (data.type === 'esp_data' && data.espId === selectedEsp) {
+    setEspLastData(data.data);
+    
+    // Добавляем точку в график
+    setSensorData(prev => [...prev.slice(-199), {
+      name: 'Температура бака',
+      value: data.data.tTank,
+      unit: '°C',
+      time: Date.now()
+    }]);
+    
+    // В историю датчиков только если alarm
+    if (data.data.alarm === 1) {
+      const alarmMessage = {
+        title: `🚨 ALARM на ${data.espId}`,
+        body: `tTank=${data.data.tTank}°C, tTop=${data.data.tTop}°C, давление=${data.data.Pressure} гПа`,
+        time: Date.now(),
+        type: 'alert'
+      };
+      setSensorMessages(prev => [alarmMessage, ...prev].slice(0, settings.maxHistory));
+    }
+  }
+  
+  
+if (data.type === 'esp_data' && data.espId === selectedEsp) {
+  setEspLastData(data.data);
+  
+  // Добавляем точки для всех датчиков
+  const now = Date.now();
+  const newPoints = [];
+  
+  if (data.data.tTank !== undefined) {
+    newPoints.push({ name: 'Температура бака', value: data.data.tTank, unit: '°C', time: now });
+  }
+  if (data.data.tTop !== undefined) {
+    newPoints.push({ name: 'Температура верха', value: data.data.tTop, unit: '°C', time: now });
+  }
+  if (data.data.Pressure !== undefined && data.data.Pressure !== 0) {
+    newPoints.push({ name: 'Давление', value: data.data.Pressure, unit: 'гПа', time: now });
+  }
+  if (data.data.heap !== undefined) {
+    newPoints.push({ name: 'Heap (память)', value: data.data.heap, unit: 'байт', time: now });
+  }
+  if (data.data.rssi !== undefined) {
+    newPoints.push({ name: 'RSSI', value: data.data.rssi, unit: 'dBm', time: now });
+  }
+  if (data.data.W?.PWMDuty !== undefined) {
+    newPoints.push({ name: 'Мощность нагревателя', value: data.data.W.PWMDuty, unit: '%', time: now });
+  }
+  
+  setSensorData(prev => [...prev, ...newPoints].slice(-200));
+  
+  // В историю датчиков добавляем только критическое событие
+  if (data.data.alarm === 1) {
+    const alarmMessage = {
+      title: `🚨 ALARM на ${data.espId}`,
+      body: `tTank=${data.data.tTank}°C, tTop=${data.data.tTop}°C, давление=${data.data.Pressure} гПа`,
+      time: Date.now(),
+      type: 'alert'
+    };
+    setSensorMessages(prev => [alarmMessage, ...prev].slice(0, settings.maxHistory));
+  }
+}
+
+
+
+});
+  }, [selectedEsp]);
+
+  // Обработка выбора ESP
+  const handleSelectEsp = (espId) => {
+    setSelectedEsp(espId);
+  };
+
+
+
+
+
+
+
   // ==================== СОХРАНЕНИЕ ДАННЫХ ====================
   useEffect(() => {
     localStorage.setItem('esp32_critical_messages', JSON.stringify(criticalMessages.slice(-settings.maxHistory)));
@@ -255,33 +363,41 @@ useEffect(() => {
   }, []);
 
   // ==================== RENDER ====================
-  return (
+    return (
     <div class="app">
       <header>
         <h1>📱 Message DCP</h1>
         <p>ESP32 Мониторинг</p>
-        {deferredPrompt && (
-          <button onClick={installPWA} class="btn-install">
-            📲 Установить
-          </button>
-        )}
+        {deferredPrompt && <button onClick={installPWA} class="btn-install">📲 Установить</button>}
       </header>
 
+      {/* Выбор ESP */}
+      <ESPSelector selectedEsp={selectedEsp} onSelectEsp={setSelectedEsp} />
+
+      {/* Информация о выбранном ESP */}
+      {selectedEsp && espLastData && (
+        <div class="esp-info">
+          <h3>📊 {selectedEsp}</h3>
+          <div class="esp-grid">
+            <div class="esp-card"><span class="label">Температура бака</span><span class="value">{espLastData.tTank}°C</span></div>
+            <div class="esp-card"><span class="label">Температура верха</span><span class="value">{espLastData.tTop}°C</span></div>
+            <div class="esp-card"><span class="label">Heap</span><span class="value">{espLastData.heap} bytes</span></div>
+            <div class="esp-card"><span class="label">RSSI</span><span class="value">{espLastData.rssi} dBm</span></div>
+            <div class="esp-card"><span class="label">Alarm</span><span class={espLastData.alarm === 1 ? 'alarm' : 'ok'}>{espLastData.alarm === 1 ? '🚨 ACTIVE' : 'OK'}</span></div>
+          </div>
+        </div>
+      )}
+
+      {/* Табы */}
       <div class="tabs">
-        <button class={activeTab === 'history' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('history')}>
-          📜 История
-        </button>
-        <button class={activeTab === 'charts' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('charts')}>
-          📊 Графики
-        </button>
-        <button class={activeTab === 'settings' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('settings')}>
-          ⚙️ Настройки
-        </button>
+        <button class={activeTab === 'history' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('history')}>📜 История</button>
+        <button class={activeTab === 'charts' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('charts')}>📊 Графики</button>
+        <button class={activeTab === 'settings' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('settings')}>⚙️ Настройки</button>
       </div>
 
       <div class="content">
         {activeTab === 'history' && (
-          <History
+          <History 
             criticalMessages={criticalMessages}
             sensorMessages={sensorMessages}
             onClearCritical={clearCriticalHistory}
@@ -292,9 +408,9 @@ useEffect(() => {
           <Charts sensorData={sensorData} />
         )}
         {activeTab === 'settings' && (
-          <Settings
-            settings={settings}
-            onUpdate={updateSetting}
+          <Settings 
+            settings={settings} 
+            onUpdate={updateSetting} 
             onTestCritical={testCritical}
             onTestSensor={testSensor}
             onRegisterToken={registerToken}

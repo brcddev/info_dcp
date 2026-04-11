@@ -1,172 +1,103 @@
-// src/components/Charts.jsx
 import { useEffect, useRef, useState } from 'preact/hooks';
 import Chart from 'chart.js/auto';
+import 'chartjs-adapter-date-fns';
 
 export const Charts = ({ sensorData }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
-  const [selectedSensor, setSelectedSensor] = useState('all');
-  
-  // Получаем список уникальных сенсоров
-  const sensors = ['all', ...new Set(sensorData.map(d => d.name))];
-  
-  // Фильтруем данные по выбранному сенсору
-  const filteredData = selectedSensor === 'all' 
-    ? sensorData 
-    : sensorData.filter(d => d.name === selectedSensor);
-  
-  // Группируем по времени (последние 50 точек)
-  const chartData = filteredData.slice(-50);
-  
+  const [selectedSensors, setSelectedSensors] = useState(['Температура бака']);
+
+  // Сохранение выбора в localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('selectedSensors');
+    if (saved) setSelectedSensors(JSON.parse(saved));
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('selectedSensors', JSON.stringify(selectedSensors));
+  }, [selectedSensors]);
+
+  const sensorOptions = [
+    'Температура бака', 'Температура верха', 'Давление',
+    'Heap (память)', 'RSSI', 'Мощность нагревателя'
+  ];
+
+  const toggleSensor = (sensor) => {
+    if (selectedSensors.includes(sensor)) {
+      if (selectedSensors.length > 1) {
+        setSelectedSensors(selectedSensors.filter(s => s !== sensor));
+      }
+    } else {
+      if (selectedSensors.length < 5) {
+        setSelectedSensors([...selectedSensors, sensor]);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!chartRef.current) return;
-    
     // Уничтожаем старый график
     if (chartInstance.current) {
       chartInstance.current.destroy();
+      chartInstance.current = null;
     }
-    
-    // Создаём новый график
+
     const ctx = chartRef.current.getContext('2d');
+    const datasets = [];
+
+    selectedSensors.forEach(sensorName => {
+      const points = sensorData.filter(p => p.name === sensorName);
+      if (points.length === 0) return;
+      datasets.push({
+        label: sensorName,
+        data: points.map(p => ({ x: p.time, y: p.value })),
+        borderColor: getColor(sensorName),
+        backgroundColor: 'transparent',
+        tension: 0.3,
+        pointRadius: 2,
+        fill: false,
+      });
+    });
+
+    if (datasets.length === 0) return;
+
     chartInstance.current = new Chart(ctx, {
       type: 'line',
-      data: {
-        labels: chartData.map((_, idx) => idx + 1),
-        datasets: selectedSensor === 'all' 
-          ? sensors.filter(s => s !== 'all').map(sensorName => ({
-              label: sensorName,
-              data: chartData.filter(d => d.name === sensorName).map(d => d.value),
-              borderColor: getColorForSensor(sensorName),
-              backgroundColor: 'transparent',
-              tension: 0.3,
-              pointRadius: 3,
-              pointHoverRadius: 5,
-              fill: false
-            }))
-          : [{
-              label: selectedSensor,
-              data: chartData.map(d => d.value),
-              borderColor: getColorForSensor(selectedSensor),
-              backgroundColor: 'rgba(54, 162, 235, 0.1)',
-              tension: 0.3,
-              pointRadius: 4,
-              pointHoverRadius: 6,
-              fill: true
-            }]
-      },
+      data: { datasets },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false,
-        },
-        plugins: {
-          legend: {
-            position: 'top',
-          },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const label = context.dataset.label || '';
-                const value = context.raw;
-                const unit = getUnitForSensor(label);
-                return `${label}: ${value} ${unit}`;
-              }
-            }
-          }
-        },
         scales: {
-          y: {
-            beginAtZero: false,
-            title: {
-              display: true,
-              text: 'Значение'
-            }
-          },
-          x: {
-            title: {
-              display: true,
-              text: 'Время (последние измерения)'
-            },
-            ticks: {
-              maxRotation: 45,
-              autoSkip: true
-            }
-          }
-        }
+          x: { type: 'time', title: { display: true, text: 'Время' } },
+          y: { title: { display: true, text: 'Значение' } }
+        },
+        plugins: { tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.y}` } } }
       }
     });
-    
-    return () => {
-      if (chartInstance.current) {
-        chartInstance.current.destroy();
-      }
-    };
-  }, [chartData, selectedSensor, sensors]);
-  
-  // Функция для получения цвета сенсора
-  const getColorForSensor = (name) => {
-    const colors = {
-      'Температура': '#ff6384',
-      'Влажность': '#36a2eb',
-      'Давление': '#ffce56',
-      'DHT22': '#4bc0c0',
-      'BMP280': '#9966ff',
-      'default': '#ff9f40'
-    };
-    return colors[name] || colors.default;
-  };
-  
-  // Функция для получения единицы измерения
-  const getUnitForSensor = (name) => {
-    const units = {
-      'Температура': '°C',
-      'Влажность': '%',
-      'Давление': 'hPa',
-      'DHT22': '°C',
-      'BMP280': 'hPa'
-    };
-    return units[name] || '';
-  };
-  
+  }, [sensorData, selectedSensors]);
+
   return (
     <div class="card">
       <h3>📊 Графики датчиков</h3>
-      
-      <div class="sensor-selector">
-        <label>Выберите датчик: </label>
-        <select value={selectedSensor} onChange={(e) => setSelectedSensor(e.target.value)}>
-          {sensors.map(sensor => (
-            <option key={sensor} value={sensor}>
-              {sensor === 'all' ? '📈 Все датчики' : `📊 ${sensor}`}
-            </option>
-          ))}
-        </select>
+      <div class="sensor-checkboxes">
+        {sensorOptions.map(sensor => (
+          <label key={sensor}>
+            <input type="checkbox" checked={selectedSensors.includes(sensor)} onChange={() => toggleSensor(sensor)} />
+            {sensor}
+          </label>
+        ))}
       </div>
-      
-      <div class="chart-container">
-        <canvas ref={chartRef} width="100%" height="300"></canvas>
-      </div>
-      
-      <div class="sensor-stats">
-        <h4>📋 Последние показания</h4>
-        <div class="stats-grid">
-          {sensors.filter(s => s !== 'all').map(sensorName => {
-            const lastData = sensorData.filter(d => d.name === sensorName).slice(-1)[0];
-            if (!lastData) return null;
-            return (
-              <div key={sensorName} class="stat-card">
-                <div class="stat-name">{sensorName}</div>
-                <div class="stat-value">
-                  {lastData.value} <span class="stat-unit">{getUnitForSensor(sensorName)}</span>
-                </div>
-                <div class="stat-time">{new Date(lastData.time).toLocaleTimeString()}</div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <div class="chart-container"><canvas ref={chartRef} height="300"></canvas></div>
+      <div class="hint">Можно выбрать до 5 датчиков</div>
     </div>
   );
 };
+
+function getColor(name) {
+  const colors = {
+    'Температура бака': '#ff6384', 'Температура верха': '#36a2eb',
+    'Давление': '#ffce56', 'Heap (память)': '#4bc0c0',
+    'RSSI': '#9966ff', 'Мощность нагревателя': '#ff9f40'
+  };
+  return colors[name] || '#888';
+}

@@ -337,3 +337,80 @@ footer {
   color: #999;
   margin-top: 5px;
 }
+
+.esp-selector {
+  background: #f0f0f0;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 16px;
+  text-align: center;
+}
+
+.esp-selector select {
+  margin-left: 10px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+}
+
+.esp-info {
+  margin: 0 16px 16px;
+  padding: 12px;
+  background: #e8f4f8;
+  border-radius: 8px;
+}
+
+.esp-info h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+}
+
+.esp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.esp-card {
+  background: white;
+  padding: 8px;
+  border-radius: 6px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.esp-card .label {
+  display: block;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.esp-card .value {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+}
+
+.alarm {
+  color: red;
+  font-weight: bold;
+}
+
+.sensor-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+.sensor-checkboxes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.hint {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 15px;
+}
