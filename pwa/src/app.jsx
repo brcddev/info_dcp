@@ -300,7 +300,7 @@ if (data.type === 'esp_data' && data.espId === selectedEsp) {
   // ==================== ОБРАБОТЧИК СООБЩЕНИЙ ОТ SERVICE WORKER ====================
   useEffect(() => {
     const handleMessage = (event) => {
-      console.log('Получено сообщение от SW:', event.data);
+      //console.log('Получено сообщение от SW:', event.data);
 
       if (event.data && event.data.type === 'ESP32_MESSAGE') {
         let { title, body, channel, sensor } = event.data;
