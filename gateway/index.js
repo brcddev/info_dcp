@@ -17,7 +17,7 @@ const server = http.createServer(app);
 // Инициализация WebSocket
 initWebSocketServer(server, config.WS_PATH);
 
-server.listen(config.PORT, () => {
+server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`
 ╔══════════════════════════════════════════════════╗
 ║         ESP GATEWAY SERVER STARTED               ║
