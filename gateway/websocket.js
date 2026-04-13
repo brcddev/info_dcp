@@ -74,7 +74,7 @@ function initWebSocketServer(server, path) {
         }
         
         // Данные от ESP
-        else if (message.type === 'esp_data' && client.type === 'esp') {
+        else if (message.msg_type === 'esp_data' && client.type === 'esp') {
           const espId = client.espId;
           const record = saveEspData(espId, message.data);
           
