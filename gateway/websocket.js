@@ -111,7 +111,17 @@ function initWebSocketServer(server, path) {
 
           }
         }
-        
+        else if (message.type === 'send_telegram') {
+          await sendTelegramMessage(client.espId, message.msg);
+        }
+        else if (message.type === 'send_fcm') {
+            await sendFCMNotification(
+              '🚨 ESP ALARM!',
+              `ESP ${client.espId}: ${message.msg}`,
+              'critical',
+              client.espId
+            );
+        }        
         // Запросы от PWA
         else if (message.type === 'get_esp_data') {
           const data = getEspData(message.espId);

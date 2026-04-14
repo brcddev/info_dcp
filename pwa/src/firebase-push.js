@@ -17,7 +17,7 @@ const messaging = getMessaging(app);
 export async function registerServiceWorkerAndGetToken() {
   try {
     console.log('1. Регистрируем Service Worker...');
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    const registration = await navigator.serviceWorker.register('sw.js');
     console.log('2. Service Worker зарегистрирован');
 
     console.log('3. Запрашиваем токен FCM...');

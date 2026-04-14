@@ -293,7 +293,7 @@ if (data.type === 'esp_data' && data.espId === selectedEsp) {
     const init = async () => {
       if ('serviceWorker' in navigator) {
         try {
-          const registration = await navigator.serviceWorker.register('/sw.js');
+          const registration = await navigator.serviceWorker.register('sw.js');
           console.log('Service Worker зарегистрирован:', registration);
         } catch (error) {
           console.error('Ошибка регистрации SW:', error);

@@ -1,6 +1,7 @@
 // esp-storage.js
 const fs = require('fs');
 const path = require('path');
+const { getAllEspConfigs } = require('./esp-config');
 
 const MAX_HISTORY = require('./config').MAX_HISTORY;
 
@@ -131,12 +132,22 @@ function getAllEspIds() {
 }
 
 function getEspList() {
-  return getAllEspIds().map(id => ({
-    id,
-    lastData: getEspData(id), // может быть null
-    historyCount: (espHistory.get(id) || []).length
-  }));
+  const configs = getAllEspConfigs(); // { espId: { displayName, apiKey, telegram, ... } }
+  const result = [];
+  for (const [id, cfg] of Object.entries(configs)) {
+    const lastData = espData.get(id) || null;
+    result.push({
+      id,
+      displayName: cfg.displayName || id,
+      apiKey: cfg.apiKey,
+      telegram: cfg.telegram || { enabled: false },
+      lastData,
+      historyCount: (espHistory.get(id) || []).length
+    });
+  }
+  return result;
 }
+
 function registerEsp(espId) {
   if (!espData.has(espId)) {
     espData.set(espId, null); // пока нет данных, но ESP известен
@@ -146,6 +157,13 @@ function registerEsp(espId) {
     return true;
   }
   return false;
+}
+function initEsp(espId) {
+  if (!espData.has(espId)) {
+    espData.set(espId, null);
+    espHistory.set(espId, []);
+    console.log(`🆕 ESP инициализирован в хранилище: ${espId}`);
+  }
 }
 // Экспорт истории в CSV (для аналитики)
 function exportHistoryToCSV(espId) {
@@ -192,5 +210,7 @@ module.exports = {
   getAllEspIds,
   getEspList,
   exportHistoryToCSV,
-  registerEsp
+  registerEsp,
+  initEsp,
+  getEspList
 };

@@ -5,13 +5,13 @@
 # ==================================================
 
 # --- НАСТРОЙКИ ---
-SERVER_USER="dcp"
-SERVER_HOST="dcp.pbord.ru"
-SERVER_PWA_PATH="/var/www/info-dcp-pwa"
-SERVER_GATEWAY_PATH="/home/dcp/gateway"
+SERVER_USER="brc"
+SERVER_HOST="lan.pbord.ru"
+SERVER_PWA_PATH="/var/www/lan.pbord.ru"
+SERVER_GATEWAY_PATH="/home/brc/gateway"
 LOCAL_PWA_PATH="/home/brc/info_dcp/pwa"
 LOCAL_GATEWAY_PATH="/home/brc/info_dcp/gateway"
-TEMP_PWA_DIR="/home/dcp/pwa-temp"
+TEMP_PWA_DIR="/home/brc/pwa-temp"
 
 # --- ЦВЕТА ---
 GREEN='\033[0;32m'
@@ -84,6 +84,7 @@ log_info "Шлюз скопирован"
 # 5. Установка зависимостей шлюза и перезапуск
 log_info "Установка зависимостей шлюза (production) и перезапуск..."
 ssh "$SERVER_USER@$SERVER_HOST" << EOF
+    export PATH="/home/brc/.nvm/versions/node/v24.14.1/bin:\$PATH"
     cd $SERVER_GATEWAY_PATH
     npm install --omit=dev
     pm2 restart info-dcp-gateway || pm2 start index.js --name info-dcp-gateway

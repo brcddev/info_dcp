@@ -1,41 +1,36 @@
 // telegram.js
-const fs = require('fs');
-const path = require('path');
+const fetch = require('node-fetch');
+const https = require('https');
+const { getEspConfig, updateEspConfig } = require('./esp-config');
 
-const CONFIG_FILE = path.join(__dirname, 'telegram_config.json');
+// Агент для принудительного IPv4
+const agent = new https.Agent({
+  family: 4,
+  rejectUnauthorized: true
+});
 
-let config = {};
-
-function loadConfig() {
-  if (fs.existsSync(CONFIG_FILE)) {
-    config = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-  } else {
-    config = {};
-  }
-}
-
-function saveConfig() {
-  fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
-}
-
-// Отправка сообщения в Telegram
 async function sendTelegramMessage(espId, text) {
-  const espCfg = config[espId];
-  if (!espCfg || !espCfg.enabled || !espCfg.botToken || !espCfg.chatId) {
-    console.log(`⚠️ Telegram не настроен для ESP ${espId}`);
+  const espCfg = getEspConfig(espId);
+  if (!espCfg || !espCfg.telegram || !espCfg.telegram.enabled) {
+    return false;
+  }
+  const { botToken, chatId } = espCfg.telegram;
+  if (!botToken || !chatId) {
+    console.log(`⚠️ Не указаны botToken или chatId для ESP ${espId}`);
     return false;
   }
 
-  const url = `https://api.telegram.org/bot${espCfg.botToken}/sendMessage`;
+  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        chat_id: espCfg.chatId,
+        chat_id: chatId,
         text: text,
         parse_mode: 'HTML'
-      })
+      }),
+      agent: agent
     });
     const result = await response.json();
     if (result.ok) {
@@ -51,20 +46,20 @@ async function sendTelegramMessage(espId, text) {
   }
 }
 
-// Обновить конфигурацию для ESP
 function setTelegramConfig(espId, { enabled, botToken, chatId }) {
-  if (!config[espId]) config[espId] = {};
-  config[espId].enabled = enabled;
-  if (botToken !== undefined) config[espId].botToken = botToken;
-  if (chatId !== undefined) config[espId].chatId = chatId;
-  saveConfig();
+  const current = getEspConfig(espId) || {};
+  const telegram = {
+    enabled: enabled !== undefined ? enabled : (current.telegram?.enabled || false),
+    botToken: botToken !== undefined ? botToken : (current.telegram?.botToken || ''),
+    chatId: chatId !== undefined ? chatId : (current.telegram?.chatId || '')
+  };
+  updateEspConfig(espId, { telegram });
 }
 
 function getTelegramConfig(espId) {
-  return config[espId] || { enabled: false };
+  const cfg = getEspConfig(espId);
+  return cfg?.telegram || { enabled: false, botToken: '', chatId: '' };
 }
-
-loadConfig();
 
 module.exports = {
   sendTelegramMessage,

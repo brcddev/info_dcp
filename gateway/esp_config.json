@@ -3,18 +3,18 @@
     "apiKey": "secret_key_123",
     "displayName": "ESP32 Emulator",
     "telegram": {
-      "enabled": true,
+      "enabled": false,
       "botToken": "1234567890:ABCdefGHIjklmNOPqrstUVWXYZ",
       "chatId": "123456789"
     }
   },
-  "esp_001": {
-    "apiKey": "another_secret_key",
-    "displayName": "ESP32 Garage",
+  "ESP32_807D3AC53720": {
+    "apiKey": "ESP32_807D3AC53720",
+    "displayName": "Esp work",
     "telegram": {
-      "enabled": false,
-      "botToken": "",
-      "chatId": ""
+      "enabled": true,
+      "botToken": "5758419279:AAF6vaoCoCHhpVrGAPTdJFg-r6MZA1ItMg4",
+      "chatId": "1870267976"
     }
   }
 }

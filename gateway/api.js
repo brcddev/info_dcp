@@ -1,15 +1,18 @@
 // api.js
 const express = require('express');
 const { registerToken, sendFCMNotification } = require('./fcm');
-const { getEspData, getEspHistory, getEspList, saveEspData } = require('./esp-storage');
+const { getEspData, getEspHistory, getEspList, saveEspData, initEsp } = require('./esp-storage');
 const config = require('./config');
 const { setTelegramConfig, getTelegramConfig } = require('./telegram');
 const { getEspConfig, updateEspConfig, addEsp, deleteEsp, getAllEspConfigs } = require('./esp-config');
 const { authenticateUser, generateToken, verifyToken, addUser, getUsers } = require('./auth');
 const fs = require('fs');
 const path = require('path');
-
 const router = express.Router();
+
+router.get('/', (req, res) => {
+  res.send('Gateway is running');
+});
 
 // Регистрация FCM токена
 router.post('/api/register-token', (req, res) => {
@@ -128,6 +131,9 @@ router.post('/api/esp', (req, res) => {
   const { espId, apiKey, displayName } = req.body;
   try {
     addEsp(espId, apiKey, displayName);
+    initEsp(espId);
+    // Создаём пустую запись, чтобы ESP сразу появился в списке
+    //saveEspData(espId, { timestamp: Date.now(), initial: true });
     res.json({ success: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
