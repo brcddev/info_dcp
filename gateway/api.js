@@ -3,6 +3,7 @@ const express = require('express');
 const { registerToken, sendFCMNotification } = require('./fcm');
 const { getEspData, getEspHistory, getEspList, saveEspData } = require('./esp-storage');
 const config = require('./config');
+const { setTelegramConfig, getTelegramConfig } = require('./telegram');
 
 const router = express.Router();
 
@@ -84,5 +85,21 @@ router.get('/api/esp/stats', (req, res) => {
   }
   res.json(stats);
 });
+
+
+// Получить настройки Telegram для ESP
+router.get('/api/esp/:espId/telegram', (req, res) => {
+  const cfg = getTelegramConfig(req.params.espId);
+  res.json(cfg);
+});
+
+// Обновить настройки Telegram для ESP
+router.post('/api/esp/:espId/telegram', (req, res) => {
+  const { enabled, botToken, chatId } = req.body;
+  setTelegramConfig(req.params.espId, { enabled, botToken, chatId });
+  res.json({ success: true });
+});
+
+
 
 module.exports = router;

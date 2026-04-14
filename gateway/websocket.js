@@ -2,6 +2,7 @@
 const WebSocket = require('ws');
 const { saveEspData, getEspData, getEspHistory, getEspList, registerEsp } = require('./esp-storage');
 const { sendFCMNotification } = require('./fcm');
+const { sendTelegramMessage } = require('./telegram');
 
 const wsClients = new Map(); // clientId -> { ws, type, espId, lastSeen }
 let nextClientId = 1;
@@ -93,6 +94,10 @@ function initWebSocketServer(server, path) {
               'critical',
               espId
             );
+            
+            const msg = `🚨 <b>ALARM на ${espId}</b>\n🌡️ tTank: ${message.data.tTank}°C\n📊 tTop: ${message.data.tTop}°C\n💾 heap: ${message.data.heap}\n📡 RSSI: ${message.data.rssi} dBm`;
+            await sendTelegramMessage(espId, msg);
+
           }
         }
         
