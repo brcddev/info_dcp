@@ -1,14 +1,41 @@
 // src/app.jsx
 import { useEffect, useState } from 'preact/hooks';
-import { ESPSelector } from './components/ESPSelector';
 import { connectWebSocket, onMessage } from './websocket';
-import { Charts } from './components/Charts';
+
+
+import { useAuth } from './contexts/AuthContext';
+import { Dashboard } from './components/Dashboard';
+import { Profile } from './components/Profile';
+import { AdminUsers } from './components/AdminUsers';
+import { Backup } from './components/Backup';
+import { ESPSelector } from './components/ESPSelector'; // ваш существующий
 import { History } from './components/History';
-import { Settings } from './components/Settings.jsx'
+import { Charts } from './components/Charts';
+import { Settings } from './components/Settings';
+
+
+
+import { ESPManagement } from './components/ESPManagement';
 import './app.css';
 
-export function App() {
-  const [activeTab, setActiveTab] = useState('history');
+
+export async function fetchApi(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+}
+
+export async function sendApiRequest(url, method, body) {
+  return fetchApi(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+}
+
+
+export function MainApp() {
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedEsp, setSelectedEsp] = useState(null);
   const [espLastData, setEspLastData] = useState(null);
   const [espHistory, setEspHistory] = useState([]);
@@ -22,6 +49,7 @@ export function App() {
   });
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [tokenStatus, setTokenStatus] = useState('');
+const { user } = useAuth();
 
   // Подключение WebSocket
   useEffect(() => {
@@ -393,7 +421,20 @@ if (data.type === 'esp_data' && data.espId === selectedEsp) {
         <button class={activeTab === 'history' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('history')}>📜 История</button>
         <button class={activeTab === 'charts' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('charts')}>📊 Графики</button>
         <button class={activeTab === 'settings' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('settings')}>⚙️ Настройки</button>
+        <button class={activeTab === 'management' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('management')}>🔧 Управление</button>
       </div>
+
+<div class="tabs">
+  <button class={activeTab === 'dashboard' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('dashboard')}>📊 Панель</button>
+  <button class={activeTab === 'profile' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('profile')}>👤 Профиль</button>
+  {user?.role === 'admin' && (
+    <>
+      <button class={activeTab === 'users' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('users')}>👥 Пользователи</button>
+      <button class={activeTab === 'backup' ? 'tab-active' : 'tab'} onClick={() => setActiveTab('backup')}>💾 Бэкапы</button>
+    </>
+  )}
+</div>
+
 
       <div class="content">
         {activeTab === 'history' && (
@@ -417,6 +458,14 @@ if (data.type === 'esp_data' && data.espId === selectedEsp) {
             tokenStatus={tokenStatus}
           />
         )}
+        {activeTab === 'management' && <ESPManagement />}
+        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'profile' && <Profile />}
+        {activeTab === 'users' && <AdminUsers />}
+        {activeTab === 'backup' && <Backup />}
+
+
+
       </div>
 
       <footer>

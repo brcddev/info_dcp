@@ -1,4 +1,11 @@
-import { render } from 'preact'
-import { App } from './app.jsx'
+// src/main.jsx
+import { render } from 'preact';
+import { AuthProvider } from './contexts/AuthContext';
+import { App } from './App';
 
-render(<App />, document.getElementById('app'))
+render(
+  <AuthProvider>
+    <App />
+  </AuthProvider>,
+  document.getElementById('app')
+);

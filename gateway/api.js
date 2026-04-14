@@ -4,6 +4,10 @@ const { registerToken, sendFCMNotification } = require('./fcm');
 const { getEspData, getEspHistory, getEspList, saveEspData } = require('./esp-storage');
 const config = require('./config');
 const { setTelegramConfig, getTelegramConfig } = require('./telegram');
+const { getEspConfig, updateEspConfig, addEsp, deleteEsp, getAllEspConfigs } = require('./esp-config');
+const { authenticateUser, generateToken, verifyToken, addUser, getUsers } = require('./auth');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
 
@@ -100,6 +104,166 @@ router.post('/api/esp/:espId/telegram', (req, res) => {
   res.json({ success: true });
 });
 
+// Получить конфиг всех ESP
+router.get('/api/esp/config', (req, res) => {
+  res.json(getAllEspConfigs());
+});
+
+// Получить конфиг конкретного ESP
+router.get('/api/esp/:espId/config', (req, res) => {
+  const cfg = getEspConfig(req.params.espId);
+  if (!cfg) return res.status(404).json({ error: 'ESP not found' });
+  res.json(cfg);
+});
+
+// Обновить конфиг ESP
+router.put('/api/esp/:espId/config', (req, res) => {
+  const { apiKey, displayName, telegram } = req.body;
+  updateEspConfig(req.params.espId, { apiKey, displayName, telegram });
+  res.json({ success: true });
+});
+
+// Добавить нового ESP
+router.post('/api/esp', (req, res) => {
+  const { espId, apiKey, displayName } = req.body;
+  try {
+    addEsp(espId, apiKey, displayName);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Удалить ESP
+router.delete('/api/esp/:espId', (req, res) => {
+  deleteEsp(req.params.espId);
+  res.json({ success: true });
+});
+
+// Публичный маршрут для логина
+router.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: 'Missing credentials' });
+  if (authenticateUser(username, password)) {
+    const token = generateToken(username);
+    res.json({ success: true, token, username, role: getUsers()[username].role });
+  } else {
+    res.status(401).json({ error: 'Invalid credentials' });
+  }
+});
+
+// Защищённый маршрут для проверки токена (например, при загрузке приложения)
+router.get('/api/auth/verify', verifyToken, (req, res) => {
+  res.json({ valid: true, username: req.user.username, role: req.user.role });
+});
+
+// Пример защищённого маршрута для управления ESP (только админ)
+router.post('/api/esp', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  // ... добавление ESP
+});
+
+// Все остальные маршруты, требующие авторизации, обернуть в verifyToken
+
+// api.js (добавить в конец перед module.exports)
+
+// Смена пароля текущего пользователя
+router.post('/api/auth/change-password', verifyToken, (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  const username = req.user.username;
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Missing old or new password' });
+  }
+  // Проверяем старый пароль
+  if (!authenticateUser(username, oldPassword)) {
+    return res.status(401).json({ error: 'Invalid old password' });
+  }
+  // Обновляем пароль
+  const users = getUsers();
+  users[username].password = require('bcrypt').hashSync(newPassword, 10);
+  require('fs').writeFileSync(require('path').join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+  res.json({ success: true });
+});
+
+// Получить список пользователей (только админ)
+router.get('/api/auth/users', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const users = getUsers();
+  // Не отправляем хеши паролей
+  const safeUsers = Object.entries(users).map(([username, data]) => ({
+    username,
+    role: data.role
+  }));
+  res.json(safeUsers);
+});
+
+// Создать нового пользователя (только админ)
+router.post('/api/auth/users', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const { username, password, role = 'user' } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Missing username or password' });
+  }
+  try {
+    addUser(username, password, role);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Удалить пользователя (только админ, нельзя удалить самого себя)
+router.delete('/api/auth/users/:username', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const username = req.params.username;
+  if (username === req.user.username) {
+    return res.status(400).json({ error: 'Cannot delete yourself' });
+  }
+  const users = getUsers();
+  if (!users[username]) return res.status(404).json({ error: 'User not found' });
+  delete users[username];
+  require('fs').writeFileSync(require('path').join(__dirname, 'users.json'), JSON.stringify(users, null, 2));
+  res.json({ success: true });
+});
+
+
+
+// Скачать users.json
+router.get('/api/admin/backup/users', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const file = path.join(__dirname, 'users.json');
+  res.download(file, `users_backup_${Date.now()}.json`);
+});
+
+// Скачать esp_config.json
+router.get('/api/admin/backup/esp-config', verifyToken, (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const file = path.join(__dirname, 'esp_config.json');
+  res.download(file, `esp_config_backup_${Date.now()}.json`);
+});
+
+// Восстановить из загруженного файла (требует multipart/form-data)
+const multer = require('multer');
+const upload = multer({ dest: '/tmp/' });
+router.post('/api/admin/restore/users', verifyToken, upload.single('file'), (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  const tmpFile = req.file.path;
+  const target = path.join(__dirname, 'users.json');
+  try {
+    // Проверка валидности JSON
+    const data = fs.readFileSync(tmpFile, 'utf8');
+    JSON.parse(data);
+    fs.copyFileSync(tmpFile, target);
+    // Перезагружаем модуль auth, чтобы изменения вступили в силу
+    delete require.cache[require.resolve('./auth')];
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  } finally {
+    fs.unlinkSync(tmpFile);
+  }
+});
+// Аналогично для esp_config.json
 
 
 module.exports = router;

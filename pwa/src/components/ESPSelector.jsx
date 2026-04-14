@@ -30,7 +30,7 @@ export const ESPSelector = ({ selectedEsp, onSelectEsp }) => {
       <select value={selectedEsp || ''} onChange={handleChange}>
         {espList.map(esp => (
           <option key={esp.id} value={esp.id}>
-            {esp.id} {esp.lastData?.tTank ? `(${esp.lastData.tTank}°C)` : '(нет данных)'}
+            {esp.displayName || esp.id} {esp.lastData?.tTank ? `(${esp.lastData.tTank}°C)` : '(нет данных)'}
           </option>
         ))}
       </select>

@@ -54,8 +54,18 @@ function initWebSocketServer(server, path) {
         
         // ESP аутентификация
         if (message.type === 'esp_auth') {
+
+          const { espId, apiKey } = message;
+          const isValid = authenticateEsp(espId, apiKey);
+          if (!isValid) {
+            ESP_LOGE(TAG, `Неверный API-ключ для ESP ${espId}, закрываем соединение`);
+            ws.close(1008, 'Invalid API key');
+            return;
+          }
           client.type = 'esp';
-          client.espId = message.espId || `esp_${clientId}`;
+          client.espId = espId;
+          client.displayName = getEspDisplayName(espId);
+
           // Регистрируем ESP в хранилище (сразу добавляем в список)
           registerEsp(client.espId);
           
@@ -94,7 +104,7 @@ function initWebSocketServer(server, path) {
               'critical',
               espId
             );
-            
+
             const msg = `🚨 <b>ALARM на ${espId}</b>\n🌡️ tTank: ${message.data.tTank}°C\n📊 tTop: ${message.data.tTop}°C\n💾 heap: ${message.data.heap}\n📡 RSSI: ${message.data.rssi} dBm`;
             await sendTelegramMessage(espId, msg);
 

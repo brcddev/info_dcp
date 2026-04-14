@@ -414,3 +414,25 @@ footer {
   color: #888;
   margin-bottom: 15px;
 }
+.esp-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+.esp-table th, .esp-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+.esp-form {
+  background: #f9f9f9;
+  padding: 16px;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.esp-form input {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px;
+}

@@ -1,0 +1,20 @@
+{
+  "esp_emulator_01": {
+    "apiKey": "secret_key_123",
+    "displayName": "ESP32 Emulator",
+    "telegram": {
+      "enabled": true,
+      "botToken": "1234567890:ABCdefGHIjklmNOPqrstUVWXYZ",
+      "chatId": "123456789"
+    }
+  },
+  "esp_001": {
+    "apiKey": "another_secret_key",
+    "displayName": "ESP32 Garage",
+    "telegram": {
+      "enabled": false,
+      "botToken": "",
+      "chatId": ""
+    }
+  }
+}
