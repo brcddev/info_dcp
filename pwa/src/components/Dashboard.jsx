@@ -21,7 +21,7 @@ export const Dashboard = () => {
       });
 
     // Проверка статуса WebSocket (опционально)
-    const ws = new WebSocket('wss://dcp.pbord.ru/ws');
+    const ws = new WebSocket(`wss://${import.meta.env.VITE_GATEWAY_HOST}/ws`);
     ws.onopen = () => setWsStatus('connected');
     ws.onclose = () => setWsStatus('disconnected');
     ws.onerror = () => setWsStatus('error');

@@ -5,7 +5,7 @@ let messageHandlers = [];
 let espListHandlers = [];
 
 export function connectWebSocket() {
-  ws = new WebSocket('wss://dcp.pbord.ru/ws');
+  ws = new WebSocket(`wss://${import.meta.env.VITE_GATEWAY_HOST}/ws`);
   
   ws.onopen = () => {
     console.log('WebSocket connected');
