@@ -4,7 +4,7 @@
 const WebSocket = require('ws');
 
 // ========== КОНФИГУРАЦИЯ ==========
-const WS_URL = 'wss://dcp.pbord.ru/ws';      // Адрес шлюза
+const WS_URL = 'wss://lan.pbord.ru/ws';      // Адрес шлюза
 // const WS_URL = 'ws://localhost:3000/ws';  // Для локального теста
 const ESP_ID = 'esp_emulator_01';             // Уникальный ID ESP
 const SEND_INTERVAL_MS = 5000;                // Интервал отправки данных (мс)

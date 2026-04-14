@@ -6,6 +6,7 @@ const http = require('http');
 const config = require('./config');
 const apiRouter = require('./api');
 const { initWebSocketServer } = require('./websocket');
+const { initTelegramBot } = require('./telegram-bot');
 
 const app = express();
 app.use(cors());
@@ -16,15 +17,15 @@ const server = http.createServer(app);
 
 // Инициализация WebSocket
 initWebSocketServer(server, config.WS_PATH);
-
+initTelegramBot(); // запуск бота
 server.listen(config.PORT, '0.0.0.0', () => {
   console.log(`
 ╔══════════════════════════════════════════════════╗
 ║         ESP GATEWAY SERVER STARTED               ║
 ╠══════════════════════════════════════════════════╣
-║  HTTP:      http://localhost:${config.PORT}         ║
-║  WebSocket: ws://localhost:${config.PORT}${config.WS_PATH}   ║
-║                                                   ║
+║  HTTP:      http://localhost:${config.PORT}                ║
+║  WebSocket: ws://localhost:${config.PORT}${config.WS_PATH}               ║
+║                                                  ║
 ║  ESP подключение: WebSocket + auth               ║
 ║  PWA подключение: WebSocket + REST API           ║
 ╚══════════════════════════════════════════════════╝

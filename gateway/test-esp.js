@@ -1,6 +1,6 @@
 const WebSocket = require('ws');
 
-const ws = new WebSocket('wss://dcp.pbord.ru/ws');
+const ws = new WebSocket('wss://lan.pbord.ru/ws');
 
 ws.on('open', () => {
   console.log('✅ WebSocket connected');
