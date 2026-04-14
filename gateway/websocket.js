@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 const { saveEspData, getEspData, getEspHistory, getEspList, registerEsp } = require('./esp-storage');
 const { sendFCMNotification } = require('./fcm');
 const { sendTelegramMessage } = require('./telegram');
+const { authenticateEsp, getEspDisplayName } = require('./esp-config');
 
 const wsClients = new Map(); // clientId -> { ws, type, espId, lastSeen }
 let nextClientId = 1;

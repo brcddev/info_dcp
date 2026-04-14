@@ -127,7 +127,7 @@ function sendTelemetry() {
   }
   const packet = buildTelemetryPacket();
   const message = {
-    type: 'esp_data',
+    msg_type: 'esp_data',
     data: packet
   };
   ws.send(JSON.stringify(message));
@@ -158,7 +158,8 @@ function connect() {
     // Аутентификация как ESP
     const authMsg = {
       type: 'esp_auth',
-      espId: ESP_ID
+      espId: ESP_ID,
+      apiKey: 'secret_key_123'
     };
     ws.send(JSON.stringify(authMsg));
     console.log(`🔐 Отправлена аутентификация для ${ESP_ID}`);
