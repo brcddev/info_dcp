@@ -40,13 +40,13 @@ function initWebSocketServer(server, path) {
     });
     
     console.log(`🔌 Новое соединение #${clientId} из ${clientIp}`);
-    
+    /*
     // Отправляем текущий список ESP новому клиенту
     ws.send(JSON.stringify({
       type: 'init',
       espList: getEspList()
     }));
-    
+    */
     ws.on('message', async (data) => {
       try {
         const message = JSON.parse(data);
